@@ -1,20 +1,93 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gately Builder</title>
-<style>
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: system-ui, -apple-system, "PingFang SC", sans-serif; background: #0f172a; color: #e2e8f0; }
-  main { text-align: center; padding: 24px; }
-  a { color: #38bdf8; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gately 定制构建</title>
+  <meta name="description" content="按需选择功能模块、平台和界面语言，生成更小的 Gately 安装包。">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script src="config.js"></script>
+  <script src="app.js" defer></script>
 </head>
 <body>
-<main>
-  <h1>Gately Builder</h1>
-  <p>在线定制构建即将上线。 · Custom builds are coming soon.</p>
-  <p><a href="https://gately.cn">gately.cn</a> · <a href="https://github.com/wangwanjie/gately">GitHub</a></p>
-</main>
+  <header class="top">
+    <a class="brand" href="https://gately.cn">
+      <img src="favicon.svg" alt="" width="28" height="28">
+      <span>Gately</span>
+    </a>
+    <nav class="top-links">
+      <a href="https://gately.cn" data-i18n="nav.site">官网</a>
+      <a href="https://github.com/wangwanjie/gately/releases" data-i18n="nav.releases">完整版下载</a>
+      <button type="button" id="lang-toggle" class="lang-toggle">English</button>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <section class="form" aria-labelledby="title">
+      <h1 id="title" data-i18n="hero.title">只装你用得到的功能</h1>
+      <p class="lead" data-i18n="hero.lead">勾选需要的功能模块、平台和界面语言，生成更小的 Gately 安装包，适合存储空间和内存有限的路由器、ARM 盒子与 NAS。已经有人构建过的组合直接下载。</p>
+      <div id="load-error" class="notice error" hidden></div>
+
+      <section class="step" aria-labelledby="step-version">
+        <h2 id="step-version"><span class="num">1</span><span data-i18n="step.version">选择版本</span></h2>
+        <select id="version" class="select" aria-label="Gately version"></select>
+        <p class="hint" data-i18n="step.versionHint">只列出支持定制构建的正式版本。</p>
+      </section>
+
+      <section class="step" aria-labelledby="step-platform">
+        <h2 id="step-platform"><span class="num">2</span><span data-i18n="step.platform">选择平台</span></h2>
+        <div id="platforms" class="platforms"></div>
+        <p class="hint"><span data-i18n="step.dockerHint">Docker 请直接使用官方镜像：</span> <code>ghcr.io/wangwanjie/gately</code></p>
+      </section>
+
+      <section class="step" aria-labelledby="step-modules">
+        <h2 id="step-modules"><span class="num">3</span><span data-i18n="step.modules">选择功能</span></h2>
+        <div class="presets" id="presets" role="group" aria-label="Presets"></div>
+        <div id="modules"></div>
+      </section>
+
+      <section class="step" aria-labelledby="step-lang">
+        <h2 id="step-lang"><span class="num">4</span><span data-i18n="step.lang">界面语言</span></h2>
+        <div id="languages" class="languages" role="radiogroup" aria-labelledby="step-lang"></div>
+      </section>
+    </section>
+
+    <aside class="sheet" aria-label="Build summary">
+      <div class="sheet-inner">
+        <div class="size">
+          <div class="size-head">
+            <span data-i18n="sheet.size">预计程序大小</span>
+            <strong id="size-value">–</strong>
+          </div>
+          <div class="size-track" aria-hidden="true">
+            <div class="size-fill" id="size-fill"></div>
+          </div>
+          <p class="size-note" id="size-note"></p>
+        </div>
+
+        <dl class="summary">
+          <dt data-i18n="sheet.modules">功能</dt><dd id="sum-modules">–</dd>
+          <dt data-i18n="sheet.platforms">平台</dt><dd id="sum-platforms">–</dd>
+          <dt data-i18n="sheet.lang">语言</dt><dd id="sum-lang">–</dd>
+        </dl>
+        <p id="added-note" class="added-note" hidden></p>
+
+        <button type="button" id="submit" class="primary" data-i18n="sheet.submit" disabled>生成安装包</button>
+        <p id="submit-error" class="notice error" hidden></p>
+
+        <div id="job" class="job" hidden>
+          <h3 data-i18n="job.title">构建进度</h3>
+          <ul id="job-list" class="job-list"></ul>
+          <p class="hint" id="job-hint"></p>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="foot">
+    <span data-i18n="foot.note">安装包由 GitHub Actions 从 Gately 开源仓库的对应版本构建，构建记录公开可查。</span>
+    <a href="https://github.com/wangwanjie/gately-builder/actions" data-i18n="foot.runs">查看构建记录</a>
+  </footer>
 </body>
 </html>
