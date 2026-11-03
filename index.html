@@ -1,93 +1,157 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="system">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Gately 定制构建</title>
   <meta name="description" content="按需选择功能模块、平台和界面语言，生成更小的 Gately 安装包。">
+  <meta name="theme-color" content="#f2f4f1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e1714" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <!-- 首屏前确定主题，避免深色模式下闪白 -->
+  <script>
+    try {
+      document.documentElement.dataset.theme = localStorage.getItem('gately-builder.theme') || 'system'
+    } catch (e) {}
+  </script>
   <link rel="stylesheet" href="style.css">
   <script src="config.js"></script>
+  <script src="i18n.js"></script>
   <script src="app.js" defer></script>
 </head>
 <body>
-  <header class="top">
+  <a class="skip" href="#steps" data-i18n="a11y.skip">跳到选项</a>
+
+  <header class="bar">
     <a class="brand" href="https://gately.cn">
-      <img src="favicon.svg" alt="" width="28" height="28">
-      <span>Gately</span>
+      <img src="favicon.svg" alt="" width="30" height="30">
+      <span class="brand-name">Gately</span>
+      <span class="brand-sub" data-i18n="brand.sub">定制构建</span>
     </a>
-    <nav class="top-links">
-      <a href="https://gately.cn" data-i18n="nav.site">官网</a>
-      <a href="https://github.com/wangwanjie/gately/releases" data-i18n="nav.releases">完整版下载</a>
-      <button type="button" id="lang-toggle" class="lang-toggle">English</button>
-    </nav>
+    <div class="bar-tools">
+      <a class="bar-link" href="https://github.com/wangwanjie/gately/releases" data-i18n="nav.releases">完整版下载</a>
+      <label class="lang">
+        <span class="sr" data-i18n="a11y.language">界面语言</span>
+        <select id="ui-lang" data-test="ui-lang">
+          <option value="zh-CN">简体中文</option>
+          <option value="zh-TW">繁體中文</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <div class="theme" role="radiogroup" data-i18n-aria="a11y.theme" aria-label="主题" data-test="theme">
+        <button type="button" role="radio" data-theme-value="light" data-i18n-title="theme.light" title="浅色">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+        </button>
+        <button type="button" role="radio" data-theme-value="dark" data-i18n-title="theme.dark" title="深色">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.6A8 8 0 0 1 9.4 4a8 8 0 1 0 10.6 10.6z"/></svg>
+        </button>
+        <button type="button" role="radio" data-theme-value="system" data-i18n-title="theme.system" title="跟随系统">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8.5 20h7M12 16.5V20"/></svg>
+        </button>
+      </div>
+    </div>
   </header>
 
-  <main class="layout">
-    <section class="form" aria-labelledby="title">
-      <h1 id="title" data-i18n="hero.title">只装你用得到的功能</h1>
-      <p class="lead" data-i18n="hero.lead">勾选需要的功能模块、平台和界面语言，生成更小的 Gately 安装包，适合存储空间和内存有限的路由器、ARM 盒子与 NAS。已经有人构建过的组合直接下载。</p>
-      <div id="load-error" class="notice error" hidden></div>
-
-      <section class="step" aria-labelledby="step-version">
-        <h2 id="step-version"><span class="num">1</span><span data-i18n="step.version">选择版本</span></h2>
-        <select id="version" class="select" aria-label="Gately version"></select>
-        <p class="hint" data-i18n="step.versionHint">只列出支持定制构建的正式版本。</p>
-      </section>
-
-      <section class="step" aria-labelledby="step-platform">
-        <h2 id="step-platform"><span class="num">2</span><span data-i18n="step.platform">选择平台</span></h2>
-        <div id="platforms" class="platforms"></div>
-        <p class="hint"><span data-i18n="step.dockerHint">Docker 请直接使用官方镜像：</span> <code>ghcr.io/wangwanjie/gately</code></p>
-      </section>
-
-      <section class="step" aria-labelledby="step-modules">
-        <h2 id="step-modules"><span class="num">3</span><span data-i18n="step.modules">选择功能</span></h2>
-        <div class="presets" id="presets" role="group" aria-label="Presets"></div>
-        <div id="modules"></div>
-      </section>
-
-      <section class="step" aria-labelledby="step-lang">
-        <h2 id="step-lang"><span class="num">4</span><span data-i18n="step.lang">界面语言</span></h2>
-        <div id="languages" class="languages" role="radiogroup" aria-labelledby="step-lang"></div>
-      </section>
+  <main class="shell">
+    <section class="intro">
+      <h1 data-i18n="hero.title">只装你用得到的功能</h1>
+      <p class="lead" data-i18n="hero.lead"></p>
     </section>
 
-    <aside class="sheet" aria-label="Build summary">
-      <div class="sheet-inner">
-        <div class="size">
-          <div class="size-head">
-            <span data-i18n="sheet.size">预计程序大小</span>
-            <strong id="size-value">–</strong>
+    <div id="load-error" class="banner" role="alert" hidden data-test="load-error"></div>
+
+    <div class="grid">
+      <div class="steps" id="steps">
+        <section class="step" aria-labelledby="h-version">
+          <h2 id="h-version"><span class="step-no">1</span><span data-i18n="step.version">选择版本</span></h2>
+          <div class="select-wrap">
+            <select id="version" class="select" data-test="version" aria-labelledby="h-version"></select>
           </div>
-          <div class="size-track" aria-hidden="true">
-            <div class="size-fill" id="size-fill"></div>
-          </div>
-          <p class="size-note" id="size-note"></p>
-        </div>
+          <p class="hint" data-i18n="step.versionHint"></p>
+        </section>
 
-        <dl class="summary">
-          <dt data-i18n="sheet.modules">功能</dt><dd id="sum-modules">–</dd>
-          <dt data-i18n="sheet.platforms">平台</dt><dd id="sum-platforms">–</dd>
-          <dt data-i18n="sheet.lang">语言</dt><dd id="sum-lang">–</dd>
-        </dl>
-        <p id="added-note" class="added-note" hidden></p>
+        <section class="step" aria-labelledby="h-platform">
+          <h2 id="h-platform"><span class="step-no">2</span><span data-i18n="step.platform">选择平台</span></h2>
+          <div id="platforms" class="platforms" data-test="platforms"></div>
+          <p class="hint"><span data-i18n="step.platformHint"></span> <code>ghcr.io/wangwanjie/gately</code></p>
+        </section>
 
-        <button type="button" id="submit" class="primary" data-i18n="sheet.submit" disabled>生成安装包</button>
-        <p id="submit-error" class="notice error" hidden></p>
+        <section class="step" aria-labelledby="h-modules">
+          <h2 id="h-modules"><span class="step-no">3</span><span data-i18n="step.modules">选择功能</span></h2>
+          <div class="presets" id="presets" role="group" data-test="presets"></div>
+          <div id="modules" class="modules" data-test="modules"></div>
+        </section>
 
-        <div id="job" class="job" hidden>
-          <h3 data-i18n="job.title">构建进度</h3>
-          <ul id="job-list" class="job-list"></ul>
-          <p class="hint" id="job-hint"></p>
-        </div>
+        <section class="step" aria-labelledby="h-lang">
+          <h2 id="h-lang"><span class="step-no">4</span><span data-i18n="step.lang">界面语言</span></h2>
+          <div id="languages" class="languages" role="radiogroup" aria-labelledby="h-lang" data-test="languages"></div>
+        </section>
       </div>
-    </aside>
+
+      <aside class="pack" id="pack" data-test="pack" aria-labelledby="pack-title">
+        <div class="pack-card">
+          <div class="pack-head">
+            <h2 id="pack-title" data-i18n="pack.title">安装包</h2>
+            <button type="button" class="pack-close" id="pack-close" data-i18n-aria="a11y.close" aria-label="关闭">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+          <div class="readout">
+            <span class="readout-num" id="size" data-test="size">–</span>
+            <span class="readout-unit">MB</span>
+          </div>
+          <p class="delta" id="delta" data-test="delta"></p>
+          <div class="storage" id="storage" role="img" data-test="storage"></div>
+          <div class="storage-tip" id="storage-tip" hidden></div>
+          <ul class="legend" id="legend"></ul>
+
+          <dl class="summary">
+            <dt data-i18n="pack.modules">功能</dt><dd id="sum-modules" data-test="sum-modules">–</dd>
+            <dt data-i18n="pack.platforms">平台</dt><dd id="sum-platforms" data-test="sum-platforms">–</dd>
+            <dt data-i18n="pack.lang">语言</dt><dd id="sum-lang">–</dd>
+          </dl>
+          <p id="note" class="note" role="status" hidden data-test="note"></p>
+
+          <div class="actions">
+            <button type="button" id="submit" class="primary" disabled data-test="submit">
+              <span class="primary-label" data-i18n="pack.submit">生成安装包</span>
+            </button>
+            <button type="button" id="share" class="ghost" data-test="share" data-i18n-title="pack.shareTitle">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3.2-3.2a4.5 4.5 0 0 0-6.4-6.4l-1.1 1.1M14 10a4.5 4.5 0 0 0-6.4 0l-3.2 3.2a4.5 4.5 0 0 0 6.4 6.4l1.1-1.1"/></svg>
+              <span data-i18n="pack.share">复制链接</span>
+            </button>
+          </div>
+          <p id="submit-hint" class="hint center" data-test="submit-hint"></p>
+          <p id="submit-error" class="error" role="alert" hidden data-test="submit-error"></p>
+
+          <section class="job" id="job" hidden data-test="job" aria-live="polite">
+            <h3 data-i18n="job.title">构建进度</h3>
+            <ul id="job-list" class="job-list"></ul>
+            <p class="hint" id="job-hint" data-test="job-hint"></p>
+          </section>
+        </div>
+      </aside>
+    </div>
   </main>
 
+  <!-- 移动端底部常驻条：显示体积，点开查看完整清单 -->
+  <div class="dock" id="dock" data-test="dock">
+    <button type="button" class="dock-info" id="dock-open" data-test="dock-open">
+      <span class="dock-size"><span id="dock-size">–</span> MB</span>
+      <span class="dock-sub" id="dock-sub"></span>
+    </button>
+    <button type="button" class="primary dock-go" id="dock-go" data-i18n="pack.review" data-test="dock-go">查看并生成</button>
+  </div>
+  <div class="backdrop" id="backdrop" hidden></div>
+
   <footer class="foot">
-    <span data-i18n="foot.note">安装包由 GitHub Actions 从 Gately 开源仓库的对应版本构建，构建记录公开可查。</span>
-    <a href="https://github.com/wangwanjie/gately-builder/actions" data-i18n="foot.runs">查看构建记录</a>
+    <p data-i18n="foot.note"></p>
+    <p>
+      <a href="https://github.com/wangwanjie/gately-builder/actions" data-i18n="foot.runs">构建记录</a>
+      <a href="https://gately.cn" data-i18n="foot.site">Gately 官网</a>
+      <a href="https://github.com/wangwanjie/gately" data-i18n="foot.source">源代码</a>
+    </p>
   </footer>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>

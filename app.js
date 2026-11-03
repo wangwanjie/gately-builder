@@ -4,114 +4,20 @@
 // 本地调试可用 ?api= 指向本机 API，正式页面只用 config.js 中的地址
 const params = new URLSearchParams(location.search)
 const API = (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && params.get('api')) || window.GATELY_BUILDER_API
-const JOB_KEY = 'gately-builder.job'
-const UI_LANG_KEY = 'gately-builder.lang'
-const POLL_MS = 10000
+const KEY = { job: 'gately-builder.job', ui: 'gately-builder.lang', theme: 'gately-builder.theme' }
+const POLL_MS = Number(params.get('poll')) || 10000
+const TEXT = window.GATELY_TEXT
+const UI_LANGS = ['zh-CN', 'zh-TW', 'en']
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)')
+const narrow = matchMedia('(max-width: 860px)')
 
-const TEXT = {
-  'zh-CN': {
-    'nav.site': '官网',
-    'nav.releases': '完整版下载',
-    'hero.title': '只装你用得到的功能',
-    'hero.lead': '勾选需要的功能模块、平台和界面语言，生成更小的 Gately 安装包，适合存储空间和内存有限的路由器、ARM 盒子与 NAS。已经有人构建过的组合直接下载。',
-    'step.version': '选择版本',
-    'step.versionHint': '只列出支持定制构建的正式版本。',
-    'step.platform': '选择平台',
-    'step.dockerHint': 'Docker 请直接使用官方镜像：',
-    'step.modules': '选择功能',
-    'step.lang': '界面语言',
-    'sheet.size': '预计程序大小',
-    'sheet.modules': '功能',
-    'sheet.platforms': '平台',
-    'sheet.lang': '语言',
-    'sheet.submit': '生成安装包',
-    'job.title': '构建进度',
-    'foot.note': '安装包由 GitHub Actions 从 Gately 开源仓库的对应版本构建，构建记录公开可查。',
-    'foot.runs': '查看构建记录',
-    'group.linux': 'Linux',
-    'group.fnos': '飞牛 fnOS',
-    'group.openwrt': 'OpenWrt',
-    'group.other': '其他系统',
-    core: '必选',
-    dep: '被依赖',
-    custom: '自定义',
-    sizeNote: '比完整版小 {mb} MB，按 linux/arm64 估算',
-    sizeFull: '与完整版相同，可以直接到发布页下载',
-    modulesCount: '核心模块与 {n} 个可选功能',
-    noPlatform: '还没有选择平台',
-    addedNote: '已自动勾选被依赖的功能：{list}',
-    removedNote: '已一并取消依赖它的功能：{list}',
-    needPlatform: '至少选择一个平台',
-    'state.done': '可以下载',
-    'state.building': '正在构建',
-    'state.queued': '排队中',
-    'state.failed': '构建失败',
-    'state.idle': '等待提交',
-    viewLog: '查看日志',
-    jobHint: '每个平台单独构建，通常 3 到 6 分钟。可以关闭页面，之后用同样的选项再来，会直接得到下载链接。',
-    jobDone: '全部构建完成。',
-    jobFailed: '有平台构建失败，可以查看日志后再次点击“生成安装包”重试。',
-    notifyTitle: 'Gately 安装包已生成',
-    notifyBody: '{n} 个平台可以下载了',
-    loadFailed: '构建服务暂时无法访问：{error}。可以先到发布页下载完整版。',
-    noVersions: '还没有支持定制构建的版本。下一个正式版发布后即可使用。',
-    submitFailed: '提交失败：{error}',
-  },
-  en: {
-    'nav.site': 'Website',
-    'nav.releases': 'Full downloads',
-    'hero.title': 'Install only the features you use',
-    'hero.lead': 'Pick the modules, platforms and UI languages you need to get a smaller Gately package for routers, ARM boxes and NAS devices with little storage or memory. Combinations someone already built download right away.',
-    'step.version': 'Choose a version',
-    'step.versionHint': 'Only releases that support custom builds are listed.',
-    'step.platform': 'Choose platforms',
-    'step.dockerHint': 'For Docker, use the official image:',
-    'step.modules': 'Choose features',
-    'step.lang': 'UI languages',
-    'sheet.size': 'Estimated size',
-    'sheet.modules': 'Features',
-    'sheet.platforms': 'Platforms',
-    'sheet.lang': 'Languages',
-    'sheet.submit': 'Build packages',
-    'job.title': 'Build progress',
-    'foot.note': 'Packages are built by GitHub Actions from the matching version of the open-source Gately repository, and every build log is public.',
-    'foot.runs': 'View build logs',
-    'group.linux': 'Linux',
-    'group.fnos': 'fnOS',
-    'group.openwrt': 'OpenWrt',
-    'group.other': 'Other systems',
-    core: 'Required',
-    dep: 'Dependency',
-    custom: 'Custom',
-    sizeNote: '{mb} MB smaller than the full edition, estimated for linux/arm64',
-    sizeFull: 'Same as the full edition, which you can download from the releases page',
-    modulesCount: 'Core modules and {n} optional features',
-    noPlatform: 'No platform selected yet',
-    addedNote: 'Also selected because they are required: {list}',
-    removedNote: 'Also removed because they depend on it: {list}',
-    needPlatform: 'Choose at least one platform',
-    'state.done': 'Ready',
-    'state.building': 'Building',
-    'state.queued': 'Queued',
-    'state.failed': 'Failed',
-    'state.idle': 'Not submitted',
-    viewLog: 'View log',
-    jobHint: 'Each platform builds separately, usually in 3 to 6 minutes. You can close this page and come back with the same options later to get the download links.',
-    jobDone: 'All builds are ready.',
-    jobFailed: 'Some platforms failed to build. Check the log, then select Build packages again to retry.',
-    notifyTitle: 'Gately packages are ready',
-    notifyBody: '{n} platforms ready to download',
-    loadFailed: 'The build service is unreachable: {error}. You can download the full edition from the releases page.',
-    noVersions: 'No release supports custom builds yet. They will be available from the next release.',
-    submitFailed: 'Submission failed: {error}',
-  },
-}
-
-// 平台的显示名称，未列出的目标显示 ID
+// 平台的显示名称
 const ARCH = { amd64: 'x86_64', arm64: 'ARM64', arm: 'ARMv7', mipsle: 'MIPS LE', mips: 'MIPS', riscv64: 'RISC-V 64' }
+const ICON_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+const ICON_DOWNLOAD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>'
 
-let ui = localStorage.getItem(UI_LANG_KEY) || (navigator.language.toLowerCase().startsWith('zh') ? 'zh-CN' : 'en')
 const state = {
+  ui: detectUILang(),
   versions: [],
   version: '',
   manifest: null,
@@ -122,19 +28,55 @@ const state = {
   lang: 'all',
   note: '',
   job: null,
+  jobData: null,
+  prev: {},
   timer: 0,
+  tick: 0,
+  shownKB: null,
+  segsReady: false,
 }
 
 const $ = (id) => document.getElementById(id)
-const t = (key, vars = {}) => (TEXT[ui][key] ?? TEXT['zh-CN'][key] ?? key).replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '')
-const pick = (obj) => (obj ? obj[ui] ?? obj.en ?? obj['zh-CN'] : '')
+const t = (key, vars = {}) => (TEXT[state.ui][key] ?? TEXT['zh-CN'][key] ?? key).replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '')
 const mb = (kb) => (kb / 1024).toFixed(1)
+
+// pick 从清单的多语言字段中取当前语言，繁体缺失时用简体，其余用英文
+function pick(obj) {
+  if (!obj) {
+    return ''
+  }
+  return obj[state.ui] ?? (state.ui === 'zh-TW' ? obj['zh-CN'] : undefined) ?? obj.en ?? obj['zh-CN'] ?? ''
+}
+
+function detectUILang() {
+  const saved = localStorage.getItem(KEY.ui)
+  if (UI_LANGS.includes(saved)) {
+    return saved
+  }
+  for (const raw of navigator.languages || [navigator.language]) {
+    const l = String(raw).toLowerCase()
+    if (/^zh-(tw|hk|mo|hant)/.test(l)) {
+      return 'zh-TW'
+    }
+    if (l.startsWith('zh')) {
+      return 'zh-CN'
+    }
+    if (l.startsWith('en')) {
+      return 'en'
+    }
+  }
+  return 'en'
+}
 
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag)
   for (const [k, v] of Object.entries(attrs)) {
     if (k === 'class') {
       node.className = v
+    } else if (k === 'html') {
+      node.innerHTML = v
+    } else if (k === 'style') {
+      node.style.cssText = v
     } else if (k.startsWith('on')) {
       node.addEventListener(k.slice(2), v)
     } else if (v !== false && v != null) {
@@ -158,16 +100,63 @@ async function api(path, init) {
   return data
 }
 
+function toast(msg) {
+  const box = $('toast')
+  box.textContent = msg
+  box.classList.add('show')
+  clearTimeout(toast.timer)
+  toast.timer = setTimeout(() => box.classList.remove('show'), 2200)
+}
+
+// ---------- 语言与主题 ----------
+
 function applyStaticText() {
-  document.documentElement.lang = ui
+  document.documentElement.lang = state.ui
   document.querySelectorAll('[data-i18n]').forEach((n) => {
     n.textContent = t(n.dataset.i18n)
   })
-  $('lang-toggle').textContent = ui === 'zh-CN' ? 'English' : '简体中文'
-  document.title = ui === 'zh-CN' ? 'Gately 定制构建' : 'Gately custom builds'
+  document.querySelectorAll('[data-i18n-title]').forEach((n) => {
+    n.title = t(n.dataset.i18nTitle)
+  })
+  document.querySelectorAll('[data-i18n-aria]').forEach((n) => {
+    n.setAttribute('aria-label', t(n.dataset.i18nAria))
+  })
+  $('ui-lang').value = state.ui
+  document.title = `Gately ${t('brand.sub')}`
 }
 
-// ---------- 版本 ----------
+function isDark(theme) {
+  return theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+}
+
+function renderThemeButtons() {
+  const cur = document.documentElement.dataset.theme
+  document.querySelectorAll('[data-theme-value]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.themeValue === cur)))
+}
+
+// setTheme 切换主题；外观确实改变时，新主题从按下的按钮处圆形展开
+function setTheme(theme, origin) {
+  const root = document.documentElement
+  const changed = isDark(root.dataset.theme) !== isDark(theme)
+  localStorage.setItem(KEY.theme, theme)
+  const apply = () => {
+    root.dataset.theme = theme
+    renderThemeButtons()
+  }
+  if (!changed || !document.startViewTransition || reduceMotion.matches || !origin) {
+    apply()
+    return
+  }
+  const r = origin.getBoundingClientRect()
+  const x = r.left + r.width / 2
+  const y = r.top + r.height / 2
+  const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))
+  document.startViewTransition(apply).ready.then(() => {
+    root.animate({ clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] }, { duration: 520, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', pseudoElement: '::view-transition-new(root)' })
+  })
+}
+
+// ---------- 版本与清单 ----------
 
 async function loadVersions() {
   try {
@@ -184,7 +173,6 @@ async function loadVersions() {
   sel.replaceChildren(...state.versions.map((v) => el('option', { value: v.version }, v.version)))
   const wanted = params.get('version')
   sel.value = state.versions.some((v) => v.version === wanted) ? wanted : state.versions[0].version
-  sel.addEventListener('change', () => loadManifest(sel.value, false))
   await loadManifest(sel.value, true)
 }
 
@@ -192,6 +180,15 @@ function showLoadError(msg) {
   const box = $('load-error')
   box.textContent = msg
   box.hidden = false
+  box.dataset.msg = msg
+}
+
+function loadJob() {
+  try {
+    return JSON.parse(localStorage.getItem(KEY.job) || 'null')
+  } catch {
+    return null
+  }
 }
 
 async function loadManifest(version, initial) {
@@ -208,14 +205,13 @@ async function loadManifest(version, initial) {
   if (initial) {
     // 地址栏参数优先（Gately 关于页的“按当前选项生成新版本”会带上），其次是上次提交的选项
     const saved = loadJob()
-    const src = params.has('modules') || params.has('lang') ? Object.fromEntries(params) : saved ? { modules: saved.modules.join(','), lang: saved.lang, targets: saved.targets.join(',') } : null
+    const src = params.has('modules') || params.has('lang') || params.has('targets') ? Object.fromEntries(params) : saved ? { modules: saved.modules.join(','), lang: saved.lang, targets: saved.targets.join(',') } : null
     if (src) {
-      state.modules = new Set((src.modules || '').split(',').filter((id) => known.has(id)))
+      state.modules = new Set(src.modules === undefined ? known : String(src.modules).split(',').filter((id) => known.has(id)))
       state.lang = m.languages.some((l) => l.id === src.lang) ? src.lang : 'all'
-      state.targets = new Set((src.targets || '').split(',').filter((id) => targetIds.has(id)))
+      state.targets = new Set(String(src.targets || '').split(',').filter((id) => targetIds.has(id)))
     } else {
       state.modules = new Set(known)
-      state.lang = 'all'
     }
   } else {
     state.modules = new Set([...state.modules].filter((id) => known.has(id)))
@@ -224,10 +220,16 @@ async function loadManifest(version, initial) {
       state.lang = 'all'
     }
   }
+  state.auto.clear()
   closeDeps()
+  state.segsReady = false
   render()
-  if (initial && loadJob()) {
-    resumeJob()
+  if (initial) {
+    const job = loadJob()
+    if (job && job.version === state.version) {
+      state.job = job
+      poll()
+    }
   }
 }
 
@@ -271,9 +273,7 @@ function dependents(id) {
   return [...out]
 }
 
-function title(id) {
-  return pick(state.manifest.modules.find((m) => m.id === id)?.title) || id
-}
+const moduleTitle = (id) => pick(state.manifest.modules.find((m) => m.id === id)?.title) || id
 
 function toggleModule(id, on) {
   state.note = ''
@@ -282,7 +282,7 @@ function toggleModule(id, on) {
     state.auto.delete(id)
     const added = closeDeps()
     if (added.length) {
-      state.note = t('addedNote', { list: added.map(title).join('、') })
+      state.note = t('addedNote', { list: added.map(moduleTitle).join(t('sep')) })
     }
   } else {
     const deps = dependents(id)
@@ -290,35 +290,43 @@ function toggleModule(id, on) {
     state.auto.delete(id)
     deps.forEach((d) => state.modules.delete(d))
     if (deps.length) {
-      state.note = t('removedNote', { list: deps.map(title).join('、') })
+      state.note = t('removedNote', { list: deps.map(moduleTitle).join(t('sep')) })
     }
   }
-  render()
+  renderModules()
+  renderSummary()
 }
 
-function applyPreset(p) {
-  state.modules = new Set(p ? p.modules : state.manifest.modules.filter((m) => !m.core).map((m) => m.id))
+function applyPreset(ids) {
+  state.modules = new Set(ids)
   state.auto.clear()
   state.note = ''
   closeDeps()
-  render()
+  renderModules()
+  renderSummary()
 }
 
-// ---------- 渲染 ----------
+// ---------- 渲染：平台、功能、语言 ----------
 
 function platformLabel(tg) {
+  if (tg.kind === 'docker') {
+    return t('dockerChip')
+  }
   if (tg.kind === 'fpk') {
     return tg.platform === 'x86' ? 'x86' : 'ARM'
   }
   if (tg.goos !== 'linux') {
     const os = { windows: 'Windows', darwin: 'macOS', freebsd: 'FreeBSD' }[tg.goos] || tg.goos
-    const arch = tg.goos === 'darwin' && tg.goarch === 'arm64' ? (ui === 'zh-CN' ? 'Apple 芯片' : 'Apple silicon') : ARCH[tg.goarch] || tg.goarch
+    const arch = tg.goos === 'darwin' && tg.goarch === 'arm64' ? (state.ui === 'en' ? 'Apple silicon' : state.ui === 'zh-TW' ? 'Apple 晶片' : 'Apple 芯片') : ARCH[tg.goarch] || tg.goarch
     return `${os} ${arch}`
   }
   return ARCH[tg.goarch] || tg.goarch
 }
 
 function targetGroup(tg) {
+  if (tg.kind === 'docker') {
+    return 'docker'
+  }
   if (tg.kind === 'fpk') {
     return 'fnos'
   }
@@ -328,88 +336,105 @@ function targetGroup(tg) {
   return tg.goos === 'linux' ? 'linux' : 'other'
 }
 
+const targetName = (tg) => `${t('group.' + targetGroup(tg))} ${platformLabel(tg)}`
+
 function renderPlatforms() {
-  const groups = ['linux', 'openwrt', 'fnos', 'other']
   $('platforms').replaceChildren(
-    ...groups.map((g) => {
-      const list = state.manifest.targets.filter((tg) => targetGroup(tg) === g)
-      return el(
+    // Docker 是用户最多的安装方式，放在最前面
+    ...['docker', 'linux', 'openwrt', 'fnos', 'other'].map((g) =>
+      el(
         'div',
         { class: 'platform-group', role: 'group', 'aria-label': t('group.' + g) },
         el('span', {}, t('group.' + g)),
         el(
           'div',
           { class: 'chips' },
-          list.map((tg) =>
-            el(
-              'span',
-              { class: 'chip' },
-              el('input', {
-                type: 'checkbox',
-                id: 'tg-' + tg.id,
-                checked: state.targets.has(tg.id),
-                onchange: (e) => {
-                  e.target.checked ? state.targets.add(tg.id) : state.targets.delete(tg.id)
-                  renderSheet()
+          state.manifest.targets
+            .filter((tg) => targetGroup(tg) === g)
+            .map((tg) =>
+              el(
+                'button',
+                {
+                  type: 'button',
+                  class: 'chip',
+                  'data-target': tg.id,
+                  'aria-pressed': String(state.targets.has(tg.id)),
+                  onclick: (e) => {
+                    const on = !state.targets.has(tg.id)
+                    on ? state.targets.add(tg.id) : state.targets.delete(tg.id)
+                    e.currentTarget.setAttribute('aria-pressed', String(on))
+                    renderSummary()
+                  },
                 },
-              }),
-              el('label', { for: 'tg-' + tg.id }, platformLabel(tg)),
+                el('span', { html: ICON_CHECK, style: 'display:contents' }),
+                platformLabel(tg),
+              ),
             ),
-          ),
         ),
-      )
-    }),
-  )
-}
-
-function currentPreset() {
-  const sel = [...state.modules].sort().join(',')
-  const all = state.manifest.modules.filter((m) => !m.core).map((m) => m.id)
-  if (sel === [...all].sort().join(',')) {
-    return 'all'
-  }
-  const p = (state.manifest.presets || []).find((x) => [...x.modules].sort().join(',') === sel)
-  return p ? p.id : 'custom'
-}
-
-function renderPresets() {
-  const cur = currentPreset()
-  const full = { id: 'all', title: { 'zh-CN': '全部功能', en: 'Everything' } }
-  $('presets').replaceChildren(
-    ...[full, ...(state.manifest.presets || [])].map((p) =>
-      el('button', { type: 'button', class: 'preset', 'aria-pressed': String(cur === p.id), onclick: () => applyPreset(p.id === 'all' ? null : p) }, pick(p.title)),
+      ),
     ),
   )
 }
 
+function presets() {
+  const optional = state.manifest.modules.filter((m) => !m.core).map((m) => m.id)
+  return [{ id: 'all', title: null, modules: optional }, ...(state.manifest.presets || [])]
+}
+
+function renderPresets() {
+  const sel = [...state.modules].sort().join(',')
+  $('presets').replaceChildren(
+    ...presets().map((p) =>
+      el(
+        'button',
+        { type: 'button', class: 'preset', 'data-preset': p.id, 'aria-pressed': String([...p.modules].sort().join(',') === sel), onclick: () => applyPreset(p.modules) },
+        p.title ? pick(p.title) : t('preset.all'),
+      ),
+    ),
+  )
+}
+
+const groupColor = (gid) => `var(--g-${gid})`
+
 function renderModules() {
   const m = state.manifest
+  // 重新渲染会替换节点，记下键盘焦点所在的模块，渲染后放回去
+  const focused = document.activeElement?.closest?.('[data-module]')?.dataset.module
   $('modules').replaceChildren(
-    ...m.groups.map((g) => {
-      const mods = m.modules.filter((x) => x.group === g.id)
-      return el(
+    ...m.groups.map((g) =>
+      el(
         'div',
-        { class: 'group' },
+        { class: 'mgroup', style: `--gc:${groupColor(g.id)}` },
         el('h3', {}, pick(g.title)),
-        mods.map((x) => {
-          const checked = x.core || state.modules.has(x.id)
-          const tags = []
-          if (x.core) {
-            tags.push(el('span', { class: 'tag core' }, t('core')))
-          } else if (state.auto.has(x.id) && checked) {
-            tags.push(el('span', { class: 'tag dep' }, t('dep')))
-          }
-          return el(
-            'label',
-            { class: 'mod' + (x.core ? ' locked' : '') },
-            el('input', { type: 'checkbox', checked, disabled: x.core, onchange: (e) => toggleModule(x.id, e.target.checked) }),
-            el('span', {}, el('span', { class: 'mod-title' }, pick(x.title)), tags, el('span', { class: 'mod-desc' }, pick(x.desc))),
-            el('span', { class: 'mod-size' }, x.core || !x.sizeKB ? '' : `${mb(x.sizeKB)} MB`),
-          )
-        }),
-      )
-    }),
+        el(
+          'div',
+          { class: 'mgrid' },
+          m.modules
+            .filter((x) => x.group === g.id)
+            .map((x) => {
+              const on = x.core || state.modules.has(x.id)
+              const tag = x.core ? el('span', { class: 'tag core' }, t('core')) : state.auto.has(x.id) && on ? el('span', { class: 'tag dep' }, t('dep')) : null
+              return el(
+                'label',
+                {
+                  class: `mod${on ? ' on' : ''}${x.core ? ' locked' : ''}`,
+                  'data-module': x.id,
+                  onmouseenter: () => highlightSeg(x.id, true),
+                  onmouseleave: () => highlightSeg(x.id, false),
+                },
+                el('input', { type: 'checkbox', checked: on, disabled: x.core, onchange: (e) => toggleModule(x.id, e.target.checked) }),
+                el('span', { class: 'box', html: ICON_CHECK }),
+                el('span', {}, el('span', { class: 'mod-title' }, pick(x.title)), tag, el('span', { class: 'mod-desc' }, pick(x.desc))),
+                el('span', { class: 'mod-size' }, x.core || !x.sizeKB ? '' : `${mb(x.sizeKB)} MB`),
+              )
+            }),
+        ),
+      ),
+    ),
   )
+  if (focused) {
+    $('modules').querySelector(`[data-module="${focused}"] input`)?.focus({ preventScroll: true })
+  }
 }
 
 function renderLanguages() {
@@ -417,7 +442,7 @@ function renderLanguages() {
     ...state.manifest.languages.map((l) =>
       el(
         'label',
-        { class: 'lang-opt' },
+        { class: 'lang-opt', 'data-lang': l.id },
         el('input', {
           type: 'radio',
           name: 'lang',
@@ -425,45 +450,147 @@ function renderLanguages() {
           checked: state.lang === l.id,
           onchange: () => {
             state.lang = l.id
-            renderSheet()
+            renderSummary()
           },
         }),
-        el('span', {}, pick(l.title)),
-        el('span', { class: 'mod-size' }, l.sizeKB ? `−${mb(l.sizeKB)} MB` : ''),
+        el('span', { class: 'lang-name' }, pick(l.title)),
+        el('span', { class: 'lang-save' }, l.sizeKB ? `−${mb(l.sizeKB)} MB` : ''),
       ),
     ),
   )
 }
 
-function estimateKB() {
+// ---------- 存储条与汇总 ----------
+
+// segments 返回存储条的各段：核心、每个可选模块、其他语言，宽度以完整版为 100%
+function segments() {
   const m = state.manifest
-  let kb = m.baseSizeKB || 0
-  for (const x of m.modules) {
-    if (!x.core && !state.modules.has(x.id)) {
-      kb -= x.sizeKB || 0
+  const optional = m.modules.filter((x) => !x.core)
+  const langMax = Math.max(...m.languages.map((l) => l.sizeKB || 0))
+  const langNow = langMax - (m.languages.find((l) => l.id === state.lang)?.sizeKB || 0)
+  const coreKB = m.baseSizeKB - optional.reduce((n, x) => n + (x.sizeKB || 0), 0) - langMax
+  const order = m.groups.map((g) => g.id)
+  const list = [{ id: '__core', kb: coreKB, on: true, color: 'var(--g-core)', title: t('coreSeg') }]
+  for (const x of [...optional].sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group))) {
+    if (x.sizeKB) {
+      list.push({ id: x.id, kb: x.sizeKB, on: state.modules.has(x.id), color: groupColor(x.group), title: pick(x.title) })
     }
   }
-  kb -= m.languages.find((l) => l.id === state.lang)?.sizeKB || 0
-  return kb
+  list.push({ id: '__lang', kb: langMax, on: langNow > 0, shownKB: langNow, color: 'var(--g-lang)', title: t('langSeg') })
+  return list
 }
 
-function renderSheet() {
+function estimateKB() {
+  return segments().reduce((n, s) => n + (s.on ? (s.shownKB ?? s.kb) : 0), 0)
+}
+
+function renderStorage() {
+  const box = $('storage')
+  const base = state.manifest.baseSizeKB
+  const segs = segments()
+  const first = !state.segsReady
+  if (first) {
+    box.replaceChildren(
+      ...segs.map((s) =>
+        el('span', {
+          class: 'seg',
+          'data-seg': s.id,
+          style: `--gc:${s.color};width:0`,
+          onmouseenter: (e) => showTip(e.currentTarget, s.id),
+          onmouseleave: hideTip,
+        }),
+      ),
+    )
+    state.segsReady = true
+  }
+  segs.forEach((s, i) => {
+    const node = box.querySelector(`[data-seg="${s.id}"]`)
+    const kb = s.shownKB ?? s.kb
+    const width = s.on ? `max(3px, calc(${((kb / base) * 100).toFixed(3)}% - 2px))` : '0px'
+    node.classList.toggle('off', !s.on)
+    node.dataset.kb = s.on ? kb : 0
+    if (first && !reduceMotion.matches) {
+      // 首次出现时各段依次填满，之后的变化不带延迟
+      node.style.transitionDelay = `${120 + i * 28}ms`
+      requestAnimationFrame(() => requestAnimationFrame(() => (node.style.width = width)))
+      setTimeout(() => (node.style.transitionDelay = ''), 1400)
+    } else {
+      node.style.width = width
+    }
+  })
+  box.setAttribute('aria-label', `${mb(estimateKB())} / ${mb(base)} MB`)
+  const groups = state.manifest.groups.filter((g) => segs.some((s) => s.color === groupColor(g.id)))
+  $('legend').replaceChildren(
+    el('li', { style: '--gc:var(--g-core)' }, t('coreSeg')),
+    ...groups.map((g) => el('li', { style: `--gc:${groupColor(g.id)}` }, pick(g.title))),
+    el('li', { style: '--gc:var(--g-lang)' }, t('langSeg')),
+  )
+}
+
+function showTip(node, id) {
+  const s = segments().find((x) => x.id === id)
+  const tip = $('storage-tip')
+  const card = node.closest('.pack-card')
+  const r = node.getBoundingClientRect()
+  const c = card.getBoundingClientRect()
+  tip.textContent = `${s.title} · ${mb(s.shownKB ?? s.kb)} MB`
+  tip.style.left = `${r.left - c.left + r.width / 2}px`
+  tip.style.top = `${r.top - c.top - 8}px`
+  tip.hidden = false
+}
+
+function hideTip() {
+  $('storage-tip').hidden = true
+}
+
+function highlightSeg(id, on) {
+  $('storage').querySelector(`[data-seg="${id}"]`)?.classList.toggle('hl', on)
+}
+
+// tweenNumber 让体积数字平滑滚动到新值
+function tweenNumber(to) {
+  const from = state.shownKB ?? to
+  state.shownKB = to
+  const nodes = [$('size'), $('dock-size')]
+  cancelAnimationFrame(tweenNumber.raf)
+  if (reduceMotion.matches || from === to) {
+    nodes.forEach((n) => (n.textContent = mb(to)))
+    return
+  }
+  const start = performance.now()
+  const step = (now) => {
+    const p = Math.min(1, (now - start) / 450)
+    const v = from + (to - from) * (1 - Math.pow(1 - p, 3))
+    nodes.forEach((n) => (n.textContent = mb(v)))
+    if (p < 1) {
+      tweenNumber.raf = requestAnimationFrame(step)
+    }
+  }
+  tweenNumber.raf = requestAnimationFrame(step)
+}
+
+function selectedTargets() {
+  return state.manifest.targets.filter((tg) => state.targets.has(tg.id))
+}
+
+function renderSummary() {
   const m = state.manifest
-  const base = m.baseSizeKB || 1
+  const base = m.baseSizeKB
   const kb = estimateKB()
-  $('size-value').textContent = `${mb(kb)} MB`
-  $('size-fill').style.width = `${Math.max(4, (kb / base) * 100)}%`
+  tweenNumber(kb)
   const saved = base - kb
-  $('size-note').textContent = saved > 64 ? t('sizeNote', { mb: mb(saved) }) : t('sizeFull')
+  $('delta').textContent = saved > 64 ? t('sizeDelta', { mb: mb(saved), pct: Math.round((saved / base) * 100) }) : t('sizeFull')
+  renderStorage()
   $('sum-modules').textContent = t('modulesCount', { n: state.modules.size })
-  const targets = m.targets.filter((tg) => state.targets.has(tg.id))
-  $('sum-platforms').textContent = targets.length ? targets.map((tg) => `${t('group.' + targetGroup(tg))} ${platformLabel(tg)}`).join('，') : t('noPlatform')
+  const targets = selectedTargets()
+  $('sum-platforms').textContent = targets.length ? targets.map(targetName).join(t('sep')) : t('noPlatform')
   $('sum-lang').textContent = pick(m.languages.find((l) => l.id === state.lang)?.title)
-  const note = $('added-note')
+  const note = $('note')
   note.textContent = state.note
   note.hidden = !state.note
-  $('submit').disabled = targets.length === 0
-  $('submit').title = targets.length ? '' : t('needPlatform')
+  $('submit').disabled = targets.length === 0 || $('submit').classList.contains('busy')
+  $('submit-hint').textContent = targets.length ? t('readyHint', { n: targets.length }) : t('needPlatform')
+  $('dock-sub').textContent = state.note || (targets.length ? t('readyHint', { n: targets.length }) : t('needPlatform'))
   renderPresets()
 }
 
@@ -471,53 +598,66 @@ function render() {
   renderPlatforms()
   renderModules()
   renderLanguages()
-  renderSheet()
+  renderSummary()
+  if (state.jobData) {
+    showJob(state.jobData)
+  }
+}
+
+// ---------- 移动端抽屉 ----------
+
+function openPack(open) {
+  $('pack').classList.toggle('open', open)
+  $('backdrop').hidden = !open
+  if (open) {
+    $('pack-close').focus({ preventScroll: true })
+  }
 }
 
 // ---------- 提交与进度 ----------
 
 function selection() {
-  const ids = (list) => state.manifest.targets.map((tg) => tg.id).filter((id) => list.has(id))
-  return { version: state.version, modules: state.manifest.modules.filter((m) => state.modules.has(m.id)).map((m) => m.id), lang: state.lang, targets: ids(state.targets) }
+  return {
+    version: state.version,
+    modules: state.manifest.modules.filter((m) => state.modules.has(m.id)).map((m) => m.id),
+    lang: state.lang,
+    targets: state.manifest.targets.map((tg) => tg.id).filter((id) => state.targets.has(id)),
+  }
 }
 
-function loadJob() {
-  try {
-    return JSON.parse(localStorage.getItem(JOB_KEY) || 'null')
-  } catch {
-    return null
-  }
+function shareURL() {
+  const s = selection()
+  const q = new URLSearchParams({ version: s.version, modules: s.modules.join(','), lang: s.lang, targets: s.targets.join(',') })
+  return `${location.origin}${location.pathname}?${q}`
 }
 
 async function submit() {
   const err = $('submit-error')
+  const btn = $('submit')
   err.hidden = true
   const sel = selection()
   // 先请求通知权限，构建完成时提醒（用户拒绝也不影响构建）
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission().catch(() => undefined)
   }
-  $('submit').disabled = true
+  btn.classList.add('busy')
+  btn.disabled = true
+  btn.querySelector('.primary-label').textContent = t('pack.submitting')
   try {
     const data = await api('/api/builds', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sel) })
-    state.job = { ...sel, notified: false }
-    localStorage.setItem(JOB_KEY, JSON.stringify(state.job))
+    state.job = { ...sel, submittedAt: Date.now(), notified: false }
+    localStorage.setItem(KEY.job, JSON.stringify(state.job))
+    state.prev = {}
     showJob(data)
+    $('job').scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'nearest' })
   } catch (e) {
     err.textContent = t('submitFailed', { error: e.message })
     err.hidden = false
   } finally {
-    $('submit').disabled = state.targets.size === 0
+    btn.classList.remove('busy')
+    btn.querySelector('.primary-label').textContent = t('pack.submit')
+    btn.disabled = state.targets.size === 0
   }
-}
-
-function resumeJob() {
-  const job = loadJob()
-  if (!job || job.version !== state.version) {
-    return
-  }
-  state.job = job
-  poll()
 }
 
 async function poll() {
@@ -534,61 +674,182 @@ async function poll() {
   }
 }
 
-function targetName(id) {
-  const tg = state.manifest.targets.find((x) => x.id === id)
-  return tg ? `${t('group.' + targetGroup(tg))} ${platformLabel(tg)}` : id
+function fmtElapsed(ms) {
+  const s = Math.max(0, Math.round(ms / 1000))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+// pullBox 显示定制镜像的拉取命令与复制按钮
+function pullBox(image) {
+  const cmd = `docker pull ${image}`
+  return el(
+    'div',
+    { class: 'pull' },
+    el('code', { class: 'pull-cmd', title: cmd }, cmd),
+    el(
+      'button',
+      {
+        type: 'button',
+        class: 'pull-copy',
+        onclick: async () => {
+          try {
+            await navigator.clipboard.writeText(cmd)
+            toast(t('pull.copied'))
+          } catch {
+            prompt('', cmd)
+          }
+        },
+      },
+      t('pull.copy'),
+    ),
+    el('p', { class: 'pull-note' }, t('pull.arch')),
+  )
+}
+
+// fileLabel 显示去掉组合键的文件名；空间不够时省略前半部分，扩展名始终完整显示（ipk 与 apk 要能区分）
+function fileLabel(name) {
+  const short = name.replace(/_[0-9a-f]{12}_/, '_')
+  const m = /^(.*?)(\.(?:tar\.gz|[a-z]+))$/.exec(short)
+  return el('span', { class: 'file-name' }, el('span', { class: 'file-base' }, m ? m[1] : short), m ? el('span', { class: 'file-ext' }, m[2]) : null)
+}
+
+function startedAt(s) {
+  return s.startedAt ? Date.parse(s.startedAt) : state.job?.submittedAt || Date.now()
 }
 
 function showJob(data) {
+  clearTimeout(state.timer)
+  state.jobData = data
   $('job').hidden = false
-  $('job-list').replaceChildren(
-    ...data.targets.map((s) =>
-      el(
-        'li',
-        { class: 'job-item' },
-        el('div', { class: 'job-row' }, el('span', {}, targetName(s.target)), el('span', { class: 'state ' + s.state }, t('state.' + s.state))),
-        s.state === 'done'
-          ? el(
-              'ul',
-              { class: 'files' },
-              s.files.map((f) => el('li', {}, el('a', { href: f.url }, f.name), ` (${mb(f.size / 1024)} MB)`)),
-            )
-          : s.runUrl
-            ? el('a', { href: s.runUrl, target: '_blank', rel: 'noopener', class: 'state' }, t('viewLog'))
-            : null,
-      ),
-    ),
-  )
-  const pending = data.targets.some((s) => s.state === 'building' || s.state === 'queued' || s.state === 'idle')
+  const items = data.targets.map((s) => {
+    const tg = state.manifest.targets.find((x) => x.id === s.target)
+    const pill = el('span', { class: `pill ${s.state}`, 'data-state': s.state }, t(s.image ? 'state.pull' : 'state.' + s.state))
+    const body = []
+    if (s.state === 'done' && s.image) {
+      body.push(pullBox(s.image))
+    } else if (s.state === 'done') {
+      body.push(
+        el(
+          'ul',
+          { class: 'files' },
+          s.files.map((f) =>
+            // 显示名去掉 12 位组合键以便看清平台与扩展名，完整文件名放在提示与下载名中
+            el('li', {}, el('a', { class: 'file', href: f.url, download: f.name, title: f.name }, el('span', { html: ICON_DOWNLOAD, style: 'display:contents' }), fileLabel(f.name), el('span', { class: 'file-size' }, `${mb(f.size / 1024)} MB`))),
+          ),
+        ),
+      )
+    } else if (s.state === 'building' || s.state === 'queued') {
+      body.push(el('div', { class: `progress ${s.state}` }))
+      body.push(el('div', { class: 'job-meta', 'data-started': startedAt(s) }, t('elapsed', { t: fmtElapsed(Date.now() - startedAt(s)) }), s.runUrl ? ' · ' : '', s.runUrl ? el('a', { href: s.runUrl, target: '_blank', rel: 'noopener' }, t('viewLog')) : null))
+    } else if (s.state === 'failed' && s.runUrl) {
+      body.push(el('div', { class: 'job-meta' }, el('a', { href: s.runUrl, target: '_blank', rel: 'noopener' }, t('viewLog'))))
+    }
+    const li = el('li', { class: 'job-item', 'data-job': s.target }, el('div', { class: 'job-row' }, el('span', {}, tg ? targetName(tg) : s.target), pill), body)
+    // 刚从构建中变为完成时迸出一圈小方块
+    if (s.state === 'done' && state.prev[s.target] && state.prev[s.target] !== 'done') {
+      requestAnimationFrame(() => burst(pill))
+    }
+    state.prev[s.target] = s.state
+    return li
+  })
+  $('job-list').replaceChildren(...items)
+  const pending = data.targets.some((s) => ['building', 'queued', 'idle'].includes(s.state))
   const failed = data.targets.some((s) => s.state === 'failed')
   $('job-hint').textContent = pending ? t('jobHint') : failed ? t('jobFailed') : t('jobDone')
+  clearInterval(state.tick)
   if (pending) {
+    // 每秒刷新已用时间，每隔 POLL_MS 查询一次进度
+    state.tick = setInterval(() => {
+      document.querySelectorAll('[data-started]').forEach((n) => {
+        n.firstChild.textContent = t('elapsed', { t: fmtElapsed(Date.now() - Number(n.dataset.started)) })
+      })
+    }, 1000)
     state.timer = setTimeout(poll, POLL_MS)
     return
   }
   const done = data.targets.filter((s) => s.state === 'done').length
   if (state.job && !state.job.notified && done > 0) {
     state.job.notified = true
-    localStorage.setItem(JOB_KEY, JSON.stringify(state.job))
+    localStorage.setItem(KEY.job, JSON.stringify(state.job))
     if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
       new Notification(t('notifyTitle'), { body: t('notifyBody', { n: done }), icon: 'favicon.svg' })
     }
   }
 }
 
+function burst(anchor) {
+  if (reduceMotion.matches) {
+    return
+  }
+  const host = anchor.closest('.job-item')
+  if (!host) {
+    return
+  }
+  const a = anchor.getBoundingClientRect()
+  const h = host.getBoundingClientRect()
+  const colors = ['--g-network', '--g-tunnel', '--g-web', '--g-storage', '--g-tools', '--accent']
+  for (let i = 0; i < 14; i++) {
+    const angle = (Math.PI * 2 * i) / 14 + Math.random() * 0.4
+    const dist = 28 + Math.random() * 26
+    const p = el('span', {
+      class: 'spark',
+      style: `left:${a.left - h.left + a.width / 2}px;top:${a.top - h.top + a.height / 2}px;background:var(${colors[i % colors.length]});--dx:${Math.cos(angle) * dist}px;--dy:${Math.sin(angle) * dist}px;--rot:${Math.random() * 360}deg`,
+    })
+    host.append(p)
+    setTimeout(() => p.remove(), 1000)
+  }
+}
+
 // ---------- 启动 ----------
 
-$('lang-toggle').addEventListener('click', () => {
-  ui = ui === 'zh-CN' ? 'en' : 'zh-CN'
-  localStorage.setItem(UI_LANG_KEY, ui)
+function init() {
   applyStaticText()
-  if (state.manifest) {
-    render()
-    if (state.job) {
-      poll()
+  renderThemeButtons()
+  document.querySelectorAll('[data-theme-value]').forEach((b) => b.addEventListener('click', () => setTheme(b.dataset.themeValue, b)))
+  $('ui-lang').addEventListener('change', (e) => {
+    state.ui = e.target.value
+    localStorage.setItem(KEY.ui, state.ui)
+    applyStaticText()
+    if (state.manifest) {
+      state.segsReady = false
+      render()
+    } else if ($('load-error').dataset.msg) {
+      $('load-error').hidden = true
+      loadVersions()
     }
+  })
+  $('version').addEventListener('change', (e) => loadManifest(e.target.value, false))
+  $('submit').addEventListener('click', submit)
+  $('share').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(shareURL())
+      toast(t('pack.copied'))
+    } catch {
+      prompt('', shareURL())
+    }
+  })
+  $('dock-open').addEventListener('click', () => openPack(true))
+  $('dock-go').addEventListener('click', () => openPack(true))
+  $('pack-close').addEventListener('click', () => openPack(false))
+  $('backdrop').addEventListener('click', () => openPack(false))
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && $('pack').classList.contains('open')) {
+      openPack(false)
+    }
+  })
+  narrow.addEventListener('change', () => openPack(false))
+  // 开头区域的点阵跟随光标亮起（只在有鼠标的设备上）
+  const intro = document.querySelector('.intro')
+  if (matchMedia('(hover: hover)').matches && !reduceMotion.matches) {
+    intro.addEventListener('pointermove', (e) => {
+      const r = intro.getBoundingClientRect()
+      intro.style.setProperty('--mx', `${e.clientX - r.left + 40}px`)
+      intro.style.setProperty('--my', `${e.clientY - r.top}px`)
+      intro.classList.add('lit')
+    })
+    intro.addEventListener('pointerleave', () => intro.classList.remove('lit'))
   }
-})
-$('submit').addEventListener('click', submit)
-applyStaticText()
-loadVersions()
+  loadVersions()
+}
+
+init()

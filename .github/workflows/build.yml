@@ -1,5 +1,7 @@
 # 定制构建：按 build.gately.cn 提交的选项构建一个目标的 Gately 安装包，上传到本仓库与版本同名的 Release。
 # 由构建器 API 经 workflow_dispatch 触发，每次只构建一个目标，产物名为 gately_<版本>_<组合键>_<目标>.<扩展名>。
+# docker 目标用 Gately 仓库的 Dockerfile 构建三架构镜像，推送到 ghcr.io/wangwanjie/gately-custom:<版本>-<组合键>，
+# 再把记录镜像地址的 gately_<版本>_<组合键>_docker.txt 上传到 Release，作为“已构建”的标记。
 name: Build
 
 run-name: gately ${{ inputs.version }} ${{ inputs.profile }} ${{ inputs.target }}
@@ -26,6 +28,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 # 同一组选项同时只构建一次
 concurrency:
@@ -79,7 +82,8 @@ jobs:
           got=$(jq -r .profile ../resolved.json)
           [ "$got" = "$PROFILE" ] || { echo "组合键不一致：输入 $PROFILE，计算得到 $got"; exit 1; }
           echo "kind=$(jq -r '.targets[0].kind' ../resolved.json)" >> "$GITHUB_OUTPUT"
-          echo "goarch=$(jq -r '.targets[0].goarch' ../resolved.json)" >> "$GITHUB_OUTPUT"
+          echo "goarch=$(jq -r '.targets[0].goarch // ""' ../resolved.json)" >> "$GITHUB_OUTPUT"
+          echo "platforms=$(jq -r '.targets[0].platforms // ""' ../resolved.json)" >> "$GITHUB_OUTPUT"
       - name: 安装 fnpack（飞牛安装包）
         if: steps.resolve.outputs.kind == 'fpk'
         run: |
@@ -88,6 +92,7 @@ jobs:
           echo "54b97fa7b70968c4d05c79840f5daeff508957d0bb2062fdb0376d00d9615c93  fnpack" | sha256sum -c -
           sudo install -m 0755 fnpack /usr/local/bin/fnpack
       - name: 构建
+        if: steps.resolve.outputs.kind != 'docker'
         working-directory: src
         run: go run ./tools/custombuild build -version "$VERSION" -modules "$MODULES" -lang "$LANG_TIER" -targets "$TARGET" -out ../dist
       - name: 打包 OpenWrt 安装包（.ipk / .apk）
@@ -103,6 +108,31 @@ jobs:
           for ext in ipk apk; do
             mv "dist/gately_${VERSION}_openwrt_${GOARCH_NAME}.$ext" "dist/gately_${VERSION}_${PROFILE}_${TARGET}.$ext"
           done
+      - uses: docker/setup-qemu-action@v3
+        if: steps.resolve.outputs.kind == 'docker'
+      - uses: docker/setup-buildx-action@v3
+        if: steps.resolve.outputs.kind == 'docker'
+      - uses: docker/login-action@v3
+        if: steps.resolve.outputs.kind == 'docker'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: 构建并推送定制镜像
+        if: steps.resolve.outputs.kind == 'docker'
+        env:
+          PLATFORMS: ${{ steps.resolve.outputs.platforms }}
+        run: |
+          image="ghcr.io/wangwanjie/gately-custom:${VERSION}-${PROFILE}"
+          args=()
+          while IFS= read -r a; do args+=(--build-arg "$a"); done < <(jq -r '.dockerArgs[]' resolved.json)
+          docker buildx build src --platform "$PLATFORMS" "${args[@]}" \
+            --build-arg VERSION="$VERSION" --build-arg COMMIT="$(git -C src rev-parse HEAD)" \
+            --label org.opencontainers.image.source=https://github.com/wangwanjie/gately-builder \
+            --label org.opencontainers.image.description="Gately $VERSION custom build $PROFILE" \
+            --metadata-file meta.json -t "$image" --push
+          mkdir -p dist
+          printf '%s\n%s\n' "$image" "$(jq -r '."containerimage.digest"' meta.json)" > "dist/gately_${VERSION}_${PROFILE}_docker.txt"
       - name: 上传到 Release
         env:
           GH_TOKEN: ${{ github.token }}
