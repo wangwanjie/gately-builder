@@ -65,7 +65,11 @@
         <section class="step" aria-labelledby="h-version">
           <h2 id="h-version"><span class="step-no">1</span><span data-i18n="step.version">选择版本</span></h2>
           <div class="select-wrap">
-            <select id="version" class="select" data-test="version" aria-labelledby="h-version"></select>
+            <select id="version" class="select-native" data-test="version" aria-labelledby="h-version" tabindex="-1" aria-hidden="true"></select>
+            <button type="button" id="version-btn" class="select" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="h-version">
+              <span class="select-value" id="version-label"></span>
+            </button>
+            <ul id="version-list" class="select-menu" role="listbox" aria-labelledby="h-version" tabindex="-1" hidden></ul>
           </div>
           <p class="hint" data-i18n="step.versionHint"></p>
         </section>

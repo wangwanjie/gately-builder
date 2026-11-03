@@ -173,6 +173,7 @@ async function loadVersions() {
   sel.replaceChildren(...state.versions.map((v) => el('option', { value: v.version }, v.version)))
   const wanted = params.get('version')
   sel.value = state.versions.some((v) => v.version === wanted) ? wanted : state.versions[0].version
+  syncVersionMenu()
   await loadManifest(sel.value, true)
 }
 
@@ -189,6 +190,107 @@ function loadJob() {
   } catch {
     return null
   }
+}
+
+// 自绘版本下拉：原生 select 保存取值，按钮与列表负责展示和键盘操作
+function syncVersionMenu() {
+  const sel = $('version')
+  const list = $('version-list')
+  $('version-label').textContent = sel.value
+  list.replaceChildren(
+    ...Array.from(sel.options).map((o) => {
+      const li = el('li', { class: 'select-option', role: 'option', 'data-value': o.value }, o.value)
+      li.setAttribute('aria-selected', String(o.value === sel.value))
+      return li
+    })
+  )
+}
+
+function setupVersionMenu() {
+  const sel = $('version')
+  const btn = $('version-btn')
+  const list = $('version-list')
+  const items = () => Array.from(list.children)
+  let active = -1
+
+  function highlight(i) {
+    const all = items()
+    if (all.length === 0) {
+      return
+    }
+    active = (i + all.length) % all.length
+    all.forEach((li, idx) => {
+      li.classList.toggle('active', idx === active)
+    })
+    all[active].scrollIntoView({ block: 'nearest' })
+  }
+
+  function open() {
+    if (items().length === 0) {
+      return
+    }
+    list.hidden = false
+    btn.setAttribute('aria-expanded', 'true')
+    highlight(items().findIndex((li) => li.dataset.value === sel.value))
+  }
+
+  function close() {
+    list.hidden = true
+    btn.setAttribute('aria-expanded', 'false')
+  }
+
+  function choose(value) {
+    close()
+    if (value === sel.value) {
+      return
+    }
+    sel.value = value
+    syncVersionMenu()
+    sel.dispatchEvent(new Event('change'))
+  }
+
+  btn.addEventListener('click', () => {
+    if (list.hidden) {
+      open()
+    } else {
+      close()
+    }
+  })
+  btn.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (list.hidden) {
+        open()
+      } else {
+        highlight(active + (e.key === 'ArrowDown' ? 1 : -1))
+      }
+    } else if ((e.key === 'Enter' || e.key === ' ') && !list.hidden) {
+      e.preventDefault()
+      if (active >= 0) {
+        choose(items()[active].dataset.value)
+      }
+    } else if (e.key === 'Escape' || e.key === 'Tab') {
+      close()
+    }
+  })
+  list.addEventListener('mousemove', (e) => {
+    const li = e.target.closest('.select-option')
+    if (li) {
+      highlight(items().indexOf(li))
+    }
+  })
+  list.addEventListener('click', (e) => {
+    const li = e.target.closest('.select-option')
+    if (li) {
+      choose(li.dataset.value)
+      btn.focus()
+    }
+  })
+  document.addEventListener('click', (e) => {
+    if (!list.hidden && !e.target.closest('.select-wrap')) {
+      close()
+    }
+  })
 }
 
 async function loadManifest(version, initial) {
@@ -818,6 +920,7 @@ function init() {
       loadVersions()
     }
   })
+  setupVersionMenu()
   $('version').addEventListener('change', (e) => loadManifest(e.target.value, false))
   $('submit').addEventListener('click', submit)
   $('share').addEventListener('click', async () => {
